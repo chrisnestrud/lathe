@@ -286,6 +286,22 @@ entry and exit, but JAWS repeats the name on the way out and still refuses the
 skip, so it cost a second reading per block and bought nothing. The label stays a
 plain paragraph, read once, in the reader's path.
 
+The markup vocabulary is not invented here. The HTML Standard defines `<kbd>` as
+user input and `<samp>` as sample output from another program, and its own
+examples cover both halves of this: a console transcript with the typed line in a
+`<kbd>` inside the `<samp>`, and a block of input and its output using `<code>`
+and `<samp>` together. `renderer.go` keeps that split — a command fence renders
+`<pre><code>`, an output fence renders `<pre><samp>`, and the fence's info string
+supplies the language the way `<screen language="bash">` does in DocBook. DocBook
+models the same content with `<screen>`, `<userinput>` for what the reader types,
+and `<computeroutput>` for what the program prints, and the label paragraph here
+plays the part of `<example><title>`. Splitting input and output into their own
+labelled blocks with prose between them is what DocBook-based authoring guidance
+already recommends over one `<screen>` holding a whole session. None of it buys a
+spoken boundary: `pre`, `code`, `samp`, and `kbd` all map to no role a screen
+reader navigates by, which is why the boundary above is a list wrapper and a
+calibrated threshold, not something the markup standard supplies.
+
 Reach for a boundary cue only when the block is a stop a reader would jump to;
 otherwise let structure the reader already navigates (headings, list items) and
 the author's prose carry the end.
