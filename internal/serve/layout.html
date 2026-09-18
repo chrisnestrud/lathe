@@ -70,7 +70,7 @@
       {{if .Tutorial.Sources}}
       <details class="provenance sources">
         <summary>Researched against {{len .Tutorial.Sources}} source{{if ne (len .Tutorial.Sources) 1}}s{{end}}</summary>
-        <ul>{{range .Tutorial.Sources}}<li><a href="{{.}}" rel="noopener noreferrer" target="_blank">{{.}}</a></li>{{end}}</ul>
+        <ul>{{range .Tutorial.Sources}}<li><a href="{{.URL}}" rel="noopener noreferrer" target="_blank">{{.Label}}</a></li>{{end}}</ul>
       </details>
       {{end}}
     </header>

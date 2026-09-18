@@ -911,7 +911,10 @@ func TestProvenanceSourcesRendered(t *testing.T) {
 		Status:  store.StatusUnverified,
 		Created: time.Now(),
 		Parts:   []string{"part-01.md"},
-		Sources: []string{"https://ziglang.org/documentation/master/#comptime"},
+		Sources: []store.Source{
+			{URL: "https://ziglang.org/documentation/master/#comptime"},
+			{Title: "MCP architecture overview", URL: "https://modelcontextprotocol.io/docs/learn/architecture"},
+		},
 	}
 	if err := os.WriteFile(filepath.Join(tutDir, "part-01.md"), []byte("# Part 1"), 0644); err != nil {
 		t.Fatal(err)
@@ -928,11 +931,18 @@ func TestProvenanceSourcesRendered(t *testing.T) {
 	// Provenance now renders in the article-header block atop <main>, no longer
 	// in the (relocated) sidebar.
 	header := articleHeader(t, w.Body.String())
-	if !strings.Contains(header, "Researched against 1 source") {
+	if !strings.Contains(header, "Researched against 2 sources") {
 		t.Error("article-header missing the 'Researched against N sources' provenance line")
 	}
 	if !strings.Contains(header, "https://ziglang.org/documentation/master/#comptime") {
 		t.Error("article-header missing the consulted source link")
+	}
+	// An untitled source falls back to its URL as link text; a titled one shows
+	// the title, so a screen reader's link list is readable instead of a list of
+	// raw URLs.
+	titled := `<a href="https://modelcontextprotocol.io/docs/learn/architecture" rel="noopener noreferrer" target="_blank">MCP architecture overview</a>`
+	if !strings.Contains(header, titled) {
+		t.Errorf("article-header should use a source's title as its link text; header:\n%s", header)
 	}
 }
 
