@@ -153,8 +153,10 @@ func renderExerciseCheckbox(w util.BufWriter, _ []byte, node ast.Node, entering 
 		return ast.WalkContinue, nil
 	}
 
-	// Exercise checkbox: interactive, carries a stable index for save/restore.
-	_, _ = fmt.Fprintf(w, `<input type="checkbox" class="exercise-check" data-exercise-index="%d"`, idx.(int))
+	// Exercise checkbox: interactive, carries a stable index for save/restore
+	// and an accessible name that matches the on-screen exercise counter.
+	exIdx := idx.(int)
+	_, _ = fmt.Fprintf(w, `<input type="checkbox" class="exercise-check" data-exercise-index="%d" aria-label="Exercise %d"`, exIdx, exIdx+1)
 	if n.IsChecked {
 		_, _ = w.WriteString(` checked=""`)
 	}

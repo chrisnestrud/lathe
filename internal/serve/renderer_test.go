@@ -341,10 +341,10 @@ func TestRenderExerciseChecklistInteractive(t *testing.T) {
 		t.Fatalf("RenderMarkdown() error = %v", err)
 	}
 	html := string(out)
-	if !strings.Contains(html, `<input type="checkbox" class="exercise-check" data-exercise-index="0">`) {
+	if !strings.Contains(html, `<input type="checkbox" class="exercise-check" data-exercise-index="0" aria-label="Exercise 1">`) {
 		t.Errorf("first exercise checkbox not rendered interactive, got:\n%s", html)
 	}
-	if !strings.Contains(html, `<input type="checkbox" class="exercise-check" data-exercise-index="1" checked="">`) {
+	if !strings.Contains(html, `<input type="checkbox" class="exercise-check" data-exercise-index="1" aria-label="Exercise 2" checked="">`) {
 		t.Errorf("checked exercise checkbox missing checked state/index, got:\n%s", html)
 	}
 	// Interactive exercise inputs are never disabled — no upstream default leaks in.
@@ -387,9 +387,9 @@ func TestRenderExerciseIndicesArePartLocalAndSkipNonExercises(t *testing.T) {
 	}
 	html := string(out)
 	for _, want := range []string{
-		`class="exercise-check" data-exercise-index="0"`,
-		`class="exercise-check" data-exercise-index="1"`,
-		`class="exercise-check" data-exercise-index="2"`,
+		`class="exercise-check" data-exercise-index="0" aria-label="Exercise 1"`,
+		`class="exercise-check" data-exercise-index="1" aria-label="Exercise 2"`,
+		`class="exercise-check" data-exercise-index="2" aria-label="Exercise 3"`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Errorf("missing exercise checkbox %q, got:\n%s", want, html)
