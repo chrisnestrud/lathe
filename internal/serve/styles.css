@@ -100,6 +100,13 @@
 
 /* ---- 3. Base ------------------------------------------------------------- */
 *{box-sizing:border-box;margin:0;padding:0}
+/* The hidden attribute has to win. Components here set their own display (the
+   live nudge is display:flex, the progress marker is a fixed block), and an
+   author rule beats the UA's [hidden]{display:none}, which leaves a dismissed
+   element on screen and in the accessibility tree — a screen reader keeps
+   hearing it and its Dismiss button after they are supposed to be gone.
+   #savedProgressMarker carried a local patch for this; this covers everything. */
+[hidden]{display:none !important}
 html,body{overflow-x:hidden}
 /* In-page anchor clicks (section rail, ToC drawer, series links) glide to the
    target instead of jumping. Disabled for reduced-motion users below. */
@@ -117,7 +124,6 @@ body{
 #progressBar{position:fixed;top:0;left:0;right:0;height:3px;background:transparent;z-index:70;pointer-events:none}
 #progressBar > div{height:100%;background:var(--accent);transform:scaleX(0);transform-origin:left center;will-change:transform}
 #savedProgressMarker{position:absolute;top:50%;width:9px;height:9px;border:2px solid var(--surface);border-radius:9999px;background:var(--accent);box-shadow:0 0 0 1px var(--accent),var(--shadow-sm);transform:translate(-50%,-50%)}
-#savedProgressMarker[hidden]{display:none}
 
 /* Layout shell (reading page) */
 .layout{display:flex;min-height:100vh}
@@ -146,6 +152,11 @@ strong{font-weight:700;color:var(--text)}
 a{color:var(--accent);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:2px;text-decoration-color:var(--accent);text-decoration-color:color-mix(in srgb,var(--accent) 45%,transparent)}
 a:hover{color:var(--accent-hover);text-decoration-color:currentColor}
 
+/* Skip link — off-screen until keyboard-focused, then slides in above the
+   sticky bar so keyboard/SR users can jump straight past it to content. */
+.skip-link{position:fixed;top:-4rem;left:1rem;z-index:120;padding:.5rem .9rem;background:var(--surface);color:var(--accent);border:1px solid var(--border-strong);border-radius:var(--radius-sm);text-decoration:none;font-family:var(--font-display);font-weight:600;font-size:.85rem;transition:top var(--transition)}
+.skip-link:focus{top:1rem}
+
 ul,ol{margin:.85rem 0 .85rem 1.5rem;color:var(--text-muted)}
 li{margin:.3rem 0}
 li::marker{color:var(--text-faint)}
@@ -172,6 +183,11 @@ pre.chroma{background:var(--code-bg)}
    pinned to the visible right edge regardless of scroll position. */
 pre[data-overflow="true"]{box-shadow:inset -18px 0 14px -12px rgba(40,30,20,.20)}
 [data-theme="dark"] pre[data-overflow="true"]{box-shadow:inset -18px 0 14px -12px rgba(0,0,0,.55)}
+
+/* Visually hidden, still announced. Live regions must stay in the accessibility
+   tree — display:none would silence them — so the page's one announcement
+   surface (#statusAnnouncer) uses this instead of hiding. */
+.visually-hidden{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
 
 /* Callouts (emitted by renderer.go as <aside class="callout callout-TYPE">) */
 .callout{margin:1.6rem 0;padding:.9rem 1.1rem .95rem;border-left:3px solid;border-radius:var(--radius-md)}
@@ -226,6 +242,9 @@ pre[data-overflow="true"]{box-shadow:inset -18px 0 14px -12px rgba(40,30,20,.20)
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;font-family:var(--font-display);font-weight:600;font-size:.9rem;line-height:1.1;padding:.55rem 1.1rem;border-radius:var(--radius-md);border:1px solid transparent;cursor:pointer;text-decoration:none;white-space:nowrap;transition:background var(--transition),border-color var(--transition),color var(--transition),transform 150ms ease-out}
 .btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .btn:disabled{opacity:.5;cursor:not-allowed}
+/* Pending state without disabling: a disabled control loses focus, so the
+   browser moves focus off the button the reader just pressed. */
+.btn[aria-busy="true"]{opacity:.5;cursor:progress}
 .btn-primary{background:var(--accent);color:var(--btn-on-accent);border-color:var(--accent)}
 .btn-primary:hover:not(:disabled){background:var(--accent-hover);border-color:var(--accent-hover)}
 .btn-ghost{background:transparent;color:var(--text-subtle);border-color:var(--border)}
@@ -246,7 +265,8 @@ pre[data-overflow="true"]{box-shadow:inset -18px 0 14px -12px rgba(40,30,20,.20)
    sources list. Holds the metadata that used to live in the left sidebar; reads
    well inline on narrow too. */
 .article-header{margin-bottom:1.8rem;padding-bottom:1.3rem;border-bottom:1px solid var(--border)}
-.article-header h2{font-family:var(--font-display);font-size:clamp(1.5rem,1.3rem + 1vw,1.9rem);font-weight:600;color:var(--text);margin:0 0 .55rem;line-height:1.2;letter-spacing:-.01em}
+/* Not a heading: the part body's own h1 owns the page outline. */
+.article-header .article-title{font-family:var(--font-display);font-size:clamp(1.5rem,1.3rem + 1vw,1.9rem);font-weight:600;color:var(--text);margin:0 0 .55rem;line-height:1.2;letter-spacing:-.01em}
 .article-header .badge{margin-bottom:.6rem}
 .article-header .provenance{font-size:.82rem;line-height:1.45;color:var(--text-subtle);margin:.3rem 0}
 .article-header .provenance.unverified-note{color:var(--callout-unverified-label)}
@@ -611,4 +631,11 @@ body.list h1{font-family:var(--font-display);font-size:clamp(1.7rem,1.3rem + 1.4
 @media (max-width:419px){
   .tutorial{flex-direction:column;align-items:stretch}
   .tutorial-actions{justify-content:space-between}
+}
+
+/* Reduced motion: the drawer/sidebar slide and the live-nudge fade are the
+   remaining transform/opacity animations on interactive UI (backdrops are
+   display-toggled, so nothing to disable there). */
+@media (prefers-reduced-motion:reduce){
+  #askDrawer,#sidebar,.live-nudge{transition:none}
 }

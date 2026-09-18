@@ -140,7 +140,7 @@
 {{- if .JustAddedPart}}
 <section class="extend-section">
   <h3>Part {{.JustAddedPart.Number}} is ready</h3>
-  <a class="btn btn-primary" href="/{{.Tutorial.Slug}}/{{.JustAddedPart.Slug}}">Read Part {{.JustAddedPart.Number}} →</a>
+  <a class="btn btn-primary" href="/{{.Tutorial.Slug}}/{{.JustAddedPart.Slug}}">Read Part {{.JustAddedPart.Number}} <span aria-hidden="true">→</span></a>
 </section>
 {{- else if eq .Tutorial.Status "extending"}}
 <section class="extend-section extending-panel">

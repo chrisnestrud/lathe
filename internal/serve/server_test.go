@@ -438,7 +438,24 @@ func TestTutorialPage(t *testing.T) {
 		t.Errorf("tutorial page should render one dock progress control; body excerpt:\n%s", body)
 	}
 	if !strings.Contains(body, `id="progressStatus"`) {
-		t.Error("tutorial page missing progress status live region")
+		t.Error("tutorial page missing the progress toast")
+	}
+	// The toast is visual only, so background saves stop interrupting the reader;
+	// what must be spoken lives in a separate announced region.
+	if !strings.Contains(body, `<p id="progressStatus" class="progress-status" aria-hidden="true"></p>`) {
+		t.Error("progress toast should stay visual only (aria-hidden, no live semantics)")
+	}
+	if got := strings.Count(body, `<p id="statusAnnouncer" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></p>`); got != 1 {
+		t.Errorf("tutorial page should carry exactly one announced status region, got %d", got)
+	}
+	// An author display rule beats the browser's [hidden] rule, which would leave
+	// a dismissed element on screen and in the accessibility tree: the live nudge
+	// is display:flex, so its Dismiss button would do nothing a reader could hear.
+	if !strings.Contains(body, `[hidden]{display:none !important}`) {
+		t.Error("stylesheet must let the hidden attribute override component display rules")
+	}
+	if !strings.Contains(body, `<div id="liveNudge" class="live-nudge" role="status" hidden>`) {
+		t.Error("the live nudge should ship hidden, to be revealed by its own script")
 	}
 	if !strings.Contains(body, `data-slug="test-tutorial"`) || !strings.Contains(body, `data-part="index.md"`) {
 		t.Error("tutorial page missing progress routing data on progress bar")
@@ -661,7 +678,7 @@ func TestSeriesPartPrevNext(t *testing.T) {
 			// The breadcrumb part segment now lives inside the part-picker's
 			// <summary> (a <details> disclosure listing every part); the ›
 			// separator still precedes it.
-			if !strings.Contains(body, `<span class="sep">›</span>`) {
+			if !strings.Contains(body, `<span class="sep" aria-hidden="true">›</span>`) {
 				t.Errorf("missing breadcrumb separator for %s", tc.part)
 			}
 			wantCrumb := `<summary>` + tc.wantCrumb
@@ -738,6 +755,19 @@ func TestSeriesSidebarAndBottomList(t *testing.T) {
 	// The persistent top bar carries the back-link to the list page.
 	if !strings.Contains(body, `class="back-link"`) || !strings.Contains(body, "All tutorials") {
 		t.Error("page missing back-link to /")
+	}
+
+	// The narrow-viewport TOC drawer keeps its visible label as plain text on a
+	// named nav landmark. It must not inject a page-chrome heading: it renders
+	// ahead of the article h1, so an h3 there both outranks and precedes it.
+	if !strings.Contains(body, `<nav id="sidebar" aria-label="Tutorial navigation">`) {
+		t.Error("sidebar nav should carry an accessible name")
+	}
+	if !strings.Contains(body, `<p class="toc-label">On this page</p>`) {
+		t.Error("sidebar TOC should keep its visible 'On this page' label")
+	}
+	if strings.Contains(body, `<h3 class="toc-label">`) {
+		t.Error("sidebar TOC label must not be a heading")
 	}
 
 	// The on-page TOC now lives in the right-edge section rail (#tocRail), with one
@@ -864,7 +894,7 @@ func TestNonSeriesNoPartNav(t *testing.T) {
 	if strings.Contains(body, `class="part-nav"`) {
 		t.Error("non-series tutorial should not render part-nav block")
 	}
-	if strings.Contains(body, `<span class="sep">`) {
+	if strings.Contains(body, `<span class="sep" aria-hidden="true">`) {
 		t.Error("non-series tutorial should not render breadcrumb separator")
 	}
 }
