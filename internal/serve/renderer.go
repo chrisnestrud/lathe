@@ -526,6 +526,12 @@ func calloutLabel(kind string) string {
 	return kind
 }
 
+// diagramUnavailableNote is what a reader sees where a diagram could not be
+// drawn, whether scripts are off or a render failed. It travels on the block as
+// data-note and inside its <noscript>, so layout.html's loader has no copy of the
+// sentence to keep in step.
+const diagramUnavailableNote = "This diagram could not be drawn in this browser. The text around it covers the same ground."
+
 // preprocessMermaid rewrites ```mermaid fenced blocks into raw HTML divs that
 // the browser-side mermaid library renders into SVG. The body is HTML-escaped
 // so labels containing < > & survive intact; the browser un-escapes them when
@@ -537,9 +543,13 @@ func preprocessMermaid(src []byte) []byte {
 			return match
 		}
 		var b bytes.Buffer
-		b.WriteString("\n<div class=\"mermaid\">\n")
+		b.WriteString("\n<div class=\"mermaid\" data-note=\"" + html.EscapeString(diagramUnavailableNote) + "\">\n")
 		b.WriteString(html.EscapeString(string(sub[1])))
 		b.WriteString("\n</div>\n")
+		// Without scripting the block would show its own source, which is not a
+		// figure. The prose around every diagram already repeats its content (the
+		// diagram contract in AGENTS.md), so name the absence instead.
+		b.WriteString(`<noscript><p class="diagram-unavailable">` + diagramUnavailableNote + `</p></noscript>` + "\n")
 		return b.Bytes()
 	})
 }

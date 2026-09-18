@@ -232,6 +232,13 @@ pre samp{background:none;padding:0;color:inherit;font-family:var(--font-mono);fo
 .mermaid{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:1rem;margin:1.4rem 0;text-align:center;overflow-x:auto;max-width:100%}
 .mermaid:not([data-processed]){font-family:var(--font-mono);font-size:.8rem;text-align:left;white-space:pre;color:var(--text-faint)}
 .mermaid svg{max-width:100%;height:auto}
+/* A diagram's source is not a fallback: hide the block while a render is in
+   flight or after it failed, and let the note below say what happened. The
+   no-script case keeps the source visible, which is the only path that cannot
+   run the loader at all. */
+.mermaid[data-mermaid-state="pending"]{visibility:hidden}
+.mermaid[data-mermaid-state="failed"]{display:none}
+.diagram-unavailable{margin:1.4rem 0;padding:.85rem 1rem;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--surface);color:var(--text-subtle)}
 
 /* ---- 4. Components ------------------------------------------------------- */
 

@@ -65,8 +65,8 @@ func TestRenderMermaidBlock(t *testing.T) {
 	}
 	html := string(out)
 
-	if !strings.Contains(html, `<div class="mermaid">`) {
-		t.Errorf("mermaid block not rewritten to <div class=\"mermaid\">, got:\n%s", html)
+	if !strings.Contains(html, `<div class="mermaid" data-note="`) {
+		t.Errorf("mermaid block not rewritten to a <div class=\"mermaid\"> carrying its note, got:\n%s", html)
 	}
 	// Chroma's <pre class="chroma"> wrapper should NOT appear for the mermaid
 	// block — it bypasses syntax highlighting entirely.
@@ -94,7 +94,7 @@ func TestRenderNonMermaidCodeBlockUnchanged(t *testing.T) {
 	if !strings.Contains(html, `class="chroma"`) {
 		t.Errorf("non-mermaid fenced block lost chroma classes, got:\n%s", html)
 	}
-	if strings.Contains(html, `<div class="mermaid">`) {
+	if strings.Contains(html, `class="mermaid"`) {
 		t.Errorf("non-mermaid block wrongly rewritten to mermaid div, got:\n%s", html)
 	}
 }

@@ -2266,3 +2266,44 @@ func TestSeriesTitlesComeFromPartHeadings(t *testing.T) {
 		t.Errorf("next part card missing the part-03 heading; nav:\n%s", nav[:400])
 	}
 }
+
+func TestMermaidLoadersCarryFallbackAndPlainRole(t *testing.T) {
+	// The reading page must not present a diagram's source as its fallback, and
+	// the rendered SVG's role must read as a word rather than Mermaid's internal
+	// type id. Both live in the inline loader, so assert on the served page.
+	dir := t.TempDir()
+	tutDir := filepath.Join(dir, "diagrammed")
+	if err := os.MkdirAll(tutDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	body := "# Diagrammed\n\n```mermaid\nflowchart TD\n    A --> B\n```\n"
+	if err := os.WriteFile(filepath.Join(tutDir, "part-01.md"), []byte(body), 0644); err != nil {
+		t.Fatal(err)
+	}
+	tut := &store.Tutorial{Slug: "diagrammed", Title: "Diagrammed", Status: store.StatusVerified, Parts: []string{"part-01.md"}, Created: time.Now()}
+	if err := store.WriteMetadata(tutDir, tut); err != nil {
+		t.Fatal(err)
+	}
+	srv := serve.NewServer(dir)
+	req := httptest.NewRequest(http.MethodGet, "/diagrammed/part-01.md", nil)
+	w := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("GET /diagrammed/part-01.md = %d, want %d", w.Code, http.StatusOK)
+	}
+	page := w.Body.String()
+	for _, want := range []string{
+		"data-mermaid-state",              // the pending/failed marker
+		"diagram-unavailable",             // the visible fallback note
+		"aria-roledescription",            // the role rewrite
+		"This diagram could not be drawn", // the note's own words
+		// A reader with scripts off gets the same named absence: the renderer
+		// writes it inside <noscript>, and the shared head hides the raw block.
+		`<noscript><p class="diagram-unavailable">`,
+		`<noscript><style>.mermaid{display:none}</style></noscript>`,
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("served page missing %q", want)
+		}
+	}
+}

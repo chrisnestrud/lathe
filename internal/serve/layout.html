@@ -724,22 +724,70 @@
     function themeFor(){
       return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default';
     }
+    function state(value){
+      divs.forEach(function(d){ d.setAttribute('data-mermaid-state', value); });
+    }
+    // Mermaid writes its internal type id (flowchart-v2, stateDiagram-v2, ...)
+    // into aria-roledescription, so a screen reader announces that token as the
+    // graphic's role. Replace it with the plain word for what the reader met.
+    function humanRole(svg){
+      var raw = svg.getAttribute('aria-roledescription') || '';
+      var word = raw.replace(/-v[0-9]+$/, '').replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
+      if (word) svg.setAttribute('aria-roledescription', word);
+    }
+    // One note per block, added once, and the block itself is hidden by CSS
+    // while it carries a failed or pending state.
+    function unavailable(){
+      state('failed');
+      divs.forEach(function(d){
+        var note = d.nextElementSibling;
+        if (note && note.classList && note.classList.contains('diagram-unavailable')) return;
+        note = document.createElement('p');
+        note.className = 'diagram-unavailable';
+        // The sentence travels on the block from renderer.go, so there is one
+        // copy of it and nothing to keep in step.
+        note.textContent = d.dataset.note || '';
+        d.parentNode.insertBefore(note, d.nextSibling);
+      });
+    }
     function render(){
       if (!window.mermaid) return;
+      state('pending');
       divs.forEach(function(d){
         d.removeAttribute('data-processed');
         d.textContent = d.dataset.source;
       });
       window.mermaid.initialize({startOnLoad:false, theme: themeFor(), securityLevel:'loose'});
-      window.mermaid.run({nodes: divs}).catch(function(err){ console.warn('mermaid render failed', err); });
+      clearTimeout(deadline);
+      deadline = setTimeout(unavailable, 10000);
+      window.mermaid.run({nodes: divs}).then(function(){
+        clearTimeout(deadline);
+        divs.forEach(function(d){
+          var svg = d.querySelector('svg');
+          if (svg) humanRole(svg);
+        });
+        state('ready');
+      }).catch(function(err){
+        clearTimeout(deadline);
+        console.warn('mermaid render failed', err);
+        unavailable();
+      });
     }
+    // Marked pending before the bundle is requested, so a bundle that never
+    // arrives cannot leave raw diagram syntax on the page for long.
+    state('pending');
+    var deadline = setTimeout(unavailable, 10000);
     var s = document.createElement('script');
     s.src = '/_static/mermaid.min.js';
     s.onload = function(){
       render();
       document.addEventListener('lathe:themechange', render);
     };
-    s.onerror = function(){ console.warn('mermaid bundle failed to load'); };
+    s.onerror = function(){
+      console.warn('mermaid bundle failed to load');
+      clearTimeout(deadline);
+      unavailable();
+    };
     document.body.appendChild(s);
   })();
 </script>
@@ -881,8 +929,7 @@
       copy.addEventListener('click', function(){
         try {
           navigator.clipboard.writeText(command).then(function(){
-            copy.textContent = 'Copied';
-            setTimeout(function(){ copy.textContent = 'Copy'; }, 1500);
+            window.latheFlashLabel(copy, 'Copied');
           });
         } catch (e) {}
       });
