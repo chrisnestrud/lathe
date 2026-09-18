@@ -82,6 +82,28 @@ func RenderMarkdownWithTOC(src []byte) ([]byte, []TOCEntry, error) {
 	return renderMarkdown(src, 0)
 }
 
+// PartTitle returns the plain text of the first level-1 heading in a part's
+// source, or "" when the part has no h1. The design system names that authored
+// heading as the source of truth for a part's title, so the series TOC, the part
+// picker, and the prev/next part nav read it from here instead of deriving a
+// title from the part's filename.
+func PartTitle(src []byte) string {
+	doc := goldmark.New().Parser().Parse(text.NewReader(src))
+	var title string
+	// The walk callback never returns an error, so the Walk result is safe to drop.
+	_ = ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if !entering {
+			return ast.WalkContinue, nil
+		}
+		if h, ok := n.(*ast.Heading); ok && h.Level == 1 {
+			title = extractInlineText(h, src)
+			return ast.WalkStop, nil
+		}
+		return ast.WalkContinue, nil
+	})
+	return title
+}
+
 // renderMarkdown is the shared pipeline: preprocess, parse, then render. A
 // positive headingLevels pushes every heading down that many levels (see
 // RenderMarkdownShift); 0 renders headings as authored.

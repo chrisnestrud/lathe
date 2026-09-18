@@ -30,8 +30,9 @@ func makeTestTutorial(t *testing.T, dir, slug string, series bool) string {
 	}
 	if series {
 		tut.Parts = []string{"part-01.md", "part-02.md"}
-		for _, p := range tut.Parts {
-			if err := os.WriteFile(filepath.Join(tutDir, p), []byte("# "+p), 0644); err != nil {
+		for i, p := range tut.Parts {
+			heading := fmt.Sprintf("# Part %02d\n", i+1)
+			if err := os.WriteFile(filepath.Join(tutDir, p), []byte(heading), 0644); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -642,8 +643,9 @@ func makeSeriesTutorialWithParts(t *testing.T, dir, slug string, numParts int) {
 		Parts:   parts,
 		Created: time.Now(),
 	}
-	for _, p := range parts {
-		if err := os.WriteFile(filepath.Join(tutDir, p), []byte("# "+p), 0644); err != nil {
+	for i, p := range parts {
+		heading := fmt.Sprintf("# Part %02d\n", i+1)
+		if err := os.WriteFile(filepath.Join(tutDir, p), []byte(heading), 0644); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -2190,5 +2192,77 @@ func TestPartPageRendersSavedExercises(t *testing.T) {
 	}
 	if !strings.Contains(w.Body.String(), `data-saved-exercises="0,2"`) {
 		t.Errorf("part page missing restored data-saved-exercises; body excerpt:\n%s", w.Body.String())
+	}
+}
+
+func TestSeriesTitlesComeFromPartHeadings(t *testing.T) {
+	// A part's authored h1 is its title (docs/design-system.md, "Heading
+	// ownership"), so the series TOC, the part picker, and the prev/next part nav
+	// must list that text rather than the filename. Part 2 deliberately has no h1
+	// to cover the fallback.
+	dir := t.TempDir()
+	tutDir := filepath.Join(dir, "titled-series")
+	if err := os.MkdirAll(tutDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	parts := []string{"part-01.md", "part-02.md", "part-03.md"}
+	bodies := []string{
+		"# Shuffles a hand can perform\n\nProse.\n",
+		"## A part with no level-1 heading\n\nProse.\n",
+		"# Fisher-Yates in C\n\nProse.\n",
+	}
+	for i, p := range parts {
+		if err := os.WriteFile(filepath.Join(tutDir, p), []byte(bodies[i]), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	tut := &store.Tutorial{
+		Slug:    "titled-series",
+		Title:   "Titled Series",
+		Status:  store.StatusVerified,
+		Parts:   parts,
+		Created: time.Now(),
+	}
+	if err := store.WriteMetadata(tutDir, tut); err != nil {
+		t.Fatal(err)
+	}
+	srv := serve.NewServer(dir)
+
+	get := func(part string) string {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodGet, "/titled-series/"+part, nil)
+		w := httptest.NewRecorder()
+		srv.Handler().ServeHTTP(w, req)
+		if w.Code != http.StatusOK {
+			t.Fatalf("GET /titled-series/%s = %d, want %d", part, w.Code, http.StatusOK)
+		}
+		return w.Body.String()
+	}
+
+	page := get("part-01.md")
+	for _, want := range []string{
+		`<span class="title">Shuffles a hand can perform</span>`,
+		`<span class="title">Fisher-Yates in C</span>`,
+		`<span class="title">Part 02</span>`,
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("part-01 page missing series title %s", want)
+		}
+	}
+	// The filename must no longer be used as a title when the part has an h1.
+	if strings.Contains(page, `<span class="title">part-01.md</span>`) {
+		t.Error("series TOC still titles a part with its filename")
+	}
+
+	// The prev/next part nav reads the same titles: on part 2, the next card names
+	// part 3 by its heading.
+	next := get("part-02.md")
+	navStart := strings.Index(next, `class="part-nav"`)
+	if navStart < 0 {
+		t.Fatal("part-02 page missing part-nav")
+	}
+	nav := next[navStart:]
+	if !strings.Contains(nav, `<span class="title">Fisher-Yates in C</span>`) {
+		t.Errorf("next part card missing the part-03 heading; nav:\n%s", nav[:400])
 	}
 }
