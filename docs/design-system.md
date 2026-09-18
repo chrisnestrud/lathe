@@ -105,7 +105,8 @@ Each component is a class in `styles.css`. Markup it expects:
 | List cards | `body.list`, `.tutorial`, `.meta`, `.delete-btn`, `.empty` | list.html |
 | List card progress | `.tutorial-progress`, `.tutorial-progress-track`, `.tutorial-progress-segments`, `.tutorial-progress-label` | list.html |
 | Callouts | `.callout.callout-<type>`, `.callout-label` | emitted by `renderer.go` |
-| Code blocks | `pre`, `pre.chroma`, `code` | goldmark + chroma |
+| Tutorial blocks | `.tutorial-block`, `.tutorial-block-command`/`-output`/`-code`, `.tutorial-block-label`, `.copy-command` | emitted by `renderer.go` |
+| Code blocks | `pre`, `pre.chroma`, `code`, `samp` | goldmark + chroma |
 
 The `head`, `badge`, and `themeToggle` partials are parsed into **both** the
 layout and list template sets (see `NewServer` in `server.go`).
@@ -156,6 +157,18 @@ near-black — and be **unreadable** on the dark code background. Scoping makes 
 undefined token fall back to its own style's readable default foreground instead.
 `renderer_test.go` spot-checks `#8f5902` (tango) and `#fe8019` (gruvbox); swapping
 either style means updating those assertions.
+
+### Block labels and captions
+
+A tutorial block's visible label comes from the fence's info string and nothing
+else: `bash` reads `Command · bash`, `text` and `json` read `Expected output ·
+<lang>`, any other language reads `Code · <lang>`, and a bare fence reads `Code`.
+There is no author-supplied caption syntax, and that is the settled contract
+rather than a gap (lathe-6m7). `AGENTS.md` already requires visible prose to
+introduce every block, so a caption in the source would be a second place to say
+what that prose says and the reader would hear both. The renderer names the
+artifact's kind; the author's prose names the particular thing. Reopen it with a
+tutorial that needs a caption the intro prose cannot carry.
 
 ## Light / dark behavior
 
@@ -236,6 +249,51 @@ reader navigates by. The body heading is the source of truth, because demoting i
 would either break the levels below it or make the renderer rewrite authored
 markdown, and hoisting the part title into the chrome would put the page's only
 `h1` outside the article it names.
+
+## Naming and repetition
+
+A screen reader speaks a string every time the page puts it in the reader's path,
+and the accessibility tree multiplies it. A labelled container announces its
+boundary, the label is read as its own node, and a control described by the same
+text reads it a further time. Tutorial blocks were `<figure>`/`<figcaption>`,
+which cost four readings of `Command · bash` before a reader reached one command:
+the figure boundary, the caption text, the copy button's description of that same
+caption, and the boundary again on the way out. Note the caption did not *name*
+the figure — `<figure>` takes no name from its content, and no screen reader
+treats a caption as the figure's accessible name (Roselli, "Brief Note on Figure
+and Figcaption Support"; MDN interactive-examples #2563 reports the same
+duplicate read). `renderer.go` carries the note.
+
+In browse mode no element gives a static block a spoken *end*. Block boundaries
+come only from roles that announce themselves — quote, figure, list, table,
+heading — and every one of them costs the reader a reading of the text it wraps.
+A long block needs that boundary anyway: a reader who wants out of a hundred lines
+should not have to arrow through them. So a non-command block longer than
+`longBlockLines` lines gets a one-item list wrapper. A list is the container every
+screen reader lets the reader leave with one keystroke — the reader who tested
+this could jump past a list and a blockquote with JAWS `>` and could not jump past
+a bare `<pre>` or a `<figure>`. Command blocks are excluded: the copy button at
+their end already answers the same question.
+
+The wrapper is a list rather than a blockquote because a blockquote would tell the
+reader the output is someone else's words, and would put machine output into quote
+navigation, where quotations from cited sources belong. It shows no visible
+marker, so the markup carries `role="list"` to keep the list in the accessibility
+tree.
+
+A figure was tried and dropped. A `<figure aria-label>` announces its name on
+entry and exit, but JAWS repeats the name on the way out and still refuses the
+skip, so it cost a second reading per block and bought nothing. The label stays a
+plain paragraph, read once, in the reader's path.
+
+Reach for a boundary cue only when the block is a stop a reader would jump to;
+otherwise let structure the reader already navigates (headings, list items) and
+the author's prose carry the end.
+
+Give a thing one name in one place and let adjacency do the associating. Reach for
+a container role only when the thing is a destination a reader would navigate to —
+code blocks, install snippets, and demo panels are not. Do not point
+`aria-describedby` at the text that already names the thing.
 
 ## How to add a new status or callout
 

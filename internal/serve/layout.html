@@ -683,10 +683,40 @@
   })();
 </script>
 <script>
+  // Copy a command block's text. Copy buttons are rendered per command block,
+  // but the feedback goes to the page's one announced region, so the button
+  // itself stays focused and a failure tells the reader how to copy by hand.
+  (function(){
+    document.addEventListener('click', function(ev){
+      var btn = ev.target && ev.target.closest ? ev.target.closest('.copy-command') : null;
+      if (!btn) return;
+      // The button copies the code element inside its own block, so one handler
+      // serves every block on the page and the markup carries no ids.
+      var block = btn.closest('.tutorial-block');
+      var target = block ? block.querySelector('pre code') : null;
+      if (!target) return;
+      if (!navigator.clipboard || !navigator.clipboard.writeText) {
+        window.latheAnnounce('Copy failed. Select the command text and copy it manually.');
+        return;
+      }
+      navigator.clipboard.writeText(target.textContent).then(function(){
+        window.latheAnnounce('Command copied to clipboard.');
+        window.latheFlashLabel(btn, 'Copied');
+      }).catch(function(){
+        window.latheAnnounce('Copy failed. Select the command text and copy it manually.');
+      });
+    });
+  })();
+</script>
+<script>
   // Render any ```mermaid fenced blocks the markdown renderer rewrote into
   // <div class="mermaid"> elements. The mermaid UMD bundle is served locally
   // from /_static/ so this works fully offline. We stash each diagram's source
   // on data-source so we can re-render with a fresh theme on dark-mode toggle.
+  //
+  // A diagram's source is never the reader-visible fallback: the block is marked
+  // pending while a render is in flight, and a render that fails or never
+  // arrives becomes a named absence with the surrounding prose left in place.
   (function(){
     var divs = Array.prototype.slice.call(document.querySelectorAll('.mermaid'));
     if (!divs.length) return;

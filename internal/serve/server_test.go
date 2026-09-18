@@ -543,10 +543,14 @@ func TestBylineShowsModelAndVoiceReveal(t *testing.T) {
 		t.Error("byline should name the recorded voice")
 	}
 	// The body must be rendered markdown: companion's spec opens with "# Companion",
-	// so the reveal should carry a rendered <h1> with that text — never the literal
-	// "# Companion" markdown.
-	if !strings.Contains(header, ">Companion</h1>") {
+	// so the reveal carries a rendered heading with that text — never the literal
+	// "# Companion" markdown. The heading is shifted down one level because the
+	// reveal is a fragment inside a page whose article title owns the h1.
+	if !strings.Contains(header, ">Companion</h2>") {
 		t.Errorf("voice-reveal body should render the spec markdown to HTML; header:\n%s", header)
+	}
+	if strings.Contains(header, ">Companion</h1>") {
+		t.Error("voice-reveal headings must nest below the article h1, not compete with it")
 	}
 	if strings.Contains(header, "# Companion") {
 		t.Error("voice-reveal body should not contain raw markdown heading syntax")
@@ -943,6 +947,63 @@ func TestProvenanceSourcesRendered(t *testing.T) {
 	titled := `<a href="https://modelcontextprotocol.io/docs/learn/architecture" rel="noopener noreferrer" target="_blank">MCP architecture overview</a>`
 	if !strings.Contains(header, titled) {
 		t.Errorf("article-header should use a source's title as its link text; header:\n%s", header)
+	}
+}
+
+// A tutorial page renders each fenced block as a labelled artifact, and carries
+// exactly one page-level status region for copy feedback however many command
+// blocks the part has.
+func TestTutorialPageRendersTutorialBlocks(t *testing.T) {
+	dir := t.TempDir()
+	tutDir := filepath.Join(dir, "blocks")
+	if err := os.MkdirAll(tutDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	body := "# Blocks\n\nRun this:\n\n```bash\nls\n```\n\nExpected output:\n\n```text\nfile.txt\n```\n"
+	if err := os.WriteFile(filepath.Join(tutDir, "part-01.md"), []byte(body), 0644); err != nil {
+		t.Fatal(err)
+	}
+	tut := &store.Tutorial{Slug: "blocks", Title: "Blocks", Status: store.StatusUnverified, Parts: []string{"part-01.md"}}
+	if err := store.WriteMetadata(tutDir, tut); err != nil {
+		t.Fatal(err)
+	}
+
+	srv := serve.NewServer(dir)
+	req := httptest.NewRequest(http.MethodGet, "/blocks/part-01.md", nil)
+	w := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(w, req)
+	page := w.Body.String()
+
+	if !strings.Contains(page, `<div class="tutorial-block tutorial-block-command">`) {
+		t.Error("command block should render as a labelled container")
+	}
+	if !strings.Contains(page, `<p class="tutorial-block-label">Command · bash</p>`) {
+		t.Error("command block should carry its label as text a reader hears once")
+	}
+	if !strings.Contains(page, `>Copy command</button>`) {
+		t.Error("command block should offer a copy button")
+	}
+	if !strings.Contains(page, `<div class="tutorial-block tutorial-block-output">`) || !strings.Contains(page, "<samp>") {
+		t.Error("output block should render as a labelled container containing samp")
+	}
+	// A figure boundary announces its name on entry and again on exit, and still
+	// does not let the reader skip the block, so blocks carry no figure wrapper.
+	if strings.Contains(page, "<figure") || strings.Contains(page, "<figcaption") {
+		t.Error("tutorial blocks should not wrap themselves in a figure")
+	}
+	// One h1 per page: the part title from the body, not the tutorial name in the
+	// chrome. Two h1s split the outline a reader navigates by.
+	if got := strings.Count(page, "<h1"); got != 1 {
+		t.Errorf("part page should carry exactly one h1, got %d:\n%s", got, page)
+	}
+	if !strings.Contains(page, `<p class="article-title">`) {
+		t.Error("the article title should render without a heading level")
+	}
+	if got := strings.Count(page, `id="statusAnnouncer"`); got != 1 {
+		t.Errorf("page should carry exactly one announced status region, got %d", got)
+	}
+	if !strings.Contains(page, `role="status" aria-live="polite" aria-atomic="true"`) {
+		t.Error("the announced status region should be a polite status region")
 	}
 }
 

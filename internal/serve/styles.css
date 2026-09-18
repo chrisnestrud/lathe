@@ -189,6 +189,23 @@ pre[data-overflow="true"]{box-shadow:inset -18px 0 14px -12px rgba(40,30,20,.20)
    surface (#statusAnnouncer) uses this instead of hiding. */
 .visually-hidden{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
 
+/* Tutorial blocks — renderer.go wraps every fenced block in a labelled container:
+   a label, the block itself, and a copy button on command blocks only. The label
+   is a plain paragraph rather than a figcaption so a screen reader reads it once
+   (renderer.go records what the figure wrapper cost); the pre inside keeps its
+   existing look. */
+.tutorial-block{margin:1.4rem 0}
+.tutorial-block pre{margin:.4rem 0 0}
+.tutorial-block .tutorial-block-label{font-family:var(--font-display);font-size:.72rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-faint);margin-bottom:.3rem}
+/* The wrapper exists for screen-reader navigation only: it gives a long block a
+   container the reader can leave with one keystroke. It carries no visible
+   marker, hence role="list" in the markup. */
+.tutorial-block-skip{list-style:none;margin:0;padding:0}
+.tutorial-block-command .copy-command{margin-top:.4rem}
+/* Output blocks mark their text with <samp>, which carries no styling of its
+   own here: match pre code so command and output blocks read as one artifact. */
+pre samp{background:none;padding:0;color:inherit;font-family:var(--font-mono);font-size:1em;white-space:pre;overflow-wrap:normal;word-wrap:normal}
+
 /* Callouts (emitted by renderer.go as <aside class="callout callout-TYPE">) */
 .callout{margin:1.6rem 0;padding:.9rem 1.1rem .95rem;border-left:3px solid;border-radius:var(--radius-md)}
 .callout > p{margin-bottom:.5rem;color:var(--text-muted)}

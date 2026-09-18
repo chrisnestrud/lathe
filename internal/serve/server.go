@@ -459,10 +459,13 @@ func (s *Server) renderPart(w http.ResponseWriter, tut *store.Tutorial, tutDir, 
 	// still shows the name but renders no <details>. Pre-feature tutorials (empty
 	// Voice) get no reveal — the byline shows the model only, matching the old
 	// footer behavior.
+	// Headings are pushed down one level: the spec is a fragment embedded in a
+	// page whose article title is the h1, so its own "# Voice name" must not
+	// land in the page outline as a competing top-level heading.
 	var voiceSpec template.HTML
 	if tut.Voice != "" {
 		if v, err := voice.Resolve(tut.Voice); err == nil {
-			if rendered, rerr := RenderMarkdown([]byte(v.Body())); rerr == nil {
+			if rendered, rerr := RenderMarkdownShift([]byte(v.Body()), 1); rerr == nil {
 				voiceSpec = template.HTML(rendered)
 			}
 		}
